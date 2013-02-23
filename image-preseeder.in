@@ -244,6 +244,50 @@ fi
 
 # Repackage initrd.gz
 info "Repackaging initrd.gz..."
-find . | cpio --create --format=newc | gzip -c > "../iso/$initrdgz"
+find . | cpio --create --format=newc 2> /dev/null | gzip -c > "../iso/$initrdgz"
+
+# Locate isolinux.cfg
+cd ../iso
+info "Locating isolinux.cfg..."
+isolinuxcfg=''
+for ilg in isolinux.cfg isolinux/isolinux.cfg; do
+    if [ -e "$ilg" ]; then
+        isolinuxcfg="$ilg"
+        break
+    fi
+done
+if [ -z "$isolinuxcfg" ]; then
+    isolinuxcfg="$(find . -name isolinux.cfg -print)"
+    if [ ! -e "$isolinuxcfg" ]; then
+        error "Did not find isolinux.cfg in ISO image"
+    fi
+fi
+info "Found $isolinuxcfg"
+isolinuxdir="$(dirname "$isolinuxcfg")"
+isolinuxpfx=''
+test isolinuxdir='.' \
+    || isolinuxpfx="$isolinuxdir/"
+if [ ! -e "${isolinuxpfx}isolinux.bin" ]; then
+    error "Did not find isolinux.bin in $isolinuxdir"
+fi
+if [ ! -e "${isolinuxpfx}boot.cat" ]; then
+    error "Did not find boot.cat in $isolinuxdir"
+fi
+
+# Add timeout to installation prompt
+sed -e 's/^timeout 0/timeout 1/' < "$isolinuxcfg" > "$isolinuxcfg.new"
+mv "$isolinuxcfg.new" "$isolinuxcfg"
+
+# Repackage ISO image
+info "Repackaging ISO image..."
+popd > /dev/null 2>&1
+outputtmp="$workdir/$(basename "$output")"
+genisoimage -quiet -o "$outputtmp" -b "${isolinuxpfx}isolinux.bin" -c "${isolinuxpfx}boot.cat" -boot-info-table -no-emul-boot -R -input-charset default "$workdir/iso"
+mv "$outputtmp" "$output"
+
+# Remove work directory
+info "Removing work directory..."
+rm -rf "$workdir"
+workdir=''
 
 # vim:si:sw=4:sta:et
