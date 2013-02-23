@@ -15,29 +15,235 @@ error () {
 set -e
 trap 'error "Error in line $LINENO"' ERR
 
+# If we are not running as root then re-execute using fakeroot to allow
+# special files such as device nodes to be created
+if [ $(id -u) -ne 0 ]; then
+    exec fakeroot "$0" "$@"
+fi
+
+# Set up cleanup on exit
+workdir=''
+keepworkdir=false
+cleanup () {
+    if [ -n "$workdir" ]; then
+        if [ "$keepworkdir" = true ]; then
+            echo "INFO: $SCRIPTNAME: Kept work directory $workdir" 1>&2
+        else
+            rm -rf "$workdir"
+        fi
+    fi
+}
+trap cleanup EXIT
+
 # Print usage
 usage () {
     cat <<EOS
 Image Preseeder, a tool to create preseeded Linux installation images
 Copyright 2013 Johannes Lehtinen
 
-Licensed under the MIT License,
-see @docdir@/LICENSE.md.
+usage: $SCRIPTNAME [OPTION...] IMAGE.iso
+       $SCRIPTNAME -h
 
+options:
+    -h   display this help text and exit
+    -v   be verbose and display informational messages
+    -x   trace execution of commands
+    -k   keep work directory if execution is interrupted
+    -p PRESEED.cfg
+         use the specified preseeding configuration [auto-detected]
+    -u VMTYPE
+         enable non-interactive externally initiated updates of the resulting
+         virtual machine of specified type (only VirtualBox supported)
+    -o OUTPUT.iso
+         output file name for the preseeded image [IMAGE-preseeded.iso]
+
+See @docdir@/README.md.
 EOS
 }
 
+# Print information if verbose display selected
+info () {
+    if [ "$verbose" = true ]; then
+        echo "INFO: $SCRIPTNAME: $1"
+    fi
+}
+
+# Detect image type
+#
+# Parameters
+#   $1 - path to extracted image
+detect_image_type () {
+    dist=''
+    version=''
+    cdtype='normal'
+    infofile=''
+    if [ -e "$1/.disk/info" ]; then
+        infofile="$1/.disk/info"
+    fi
+    if [ -e "$1/.disk/mini-info" ]; then
+        infofile="$1/.disk/mini-info"
+        cdtype="mini"
+    fi
+    if [ -n "$infofile" ]; then
+        diskinfo="$(< "$infofile")"
+        case "$diskinfo" in
+            "Debian GNU/Linux "*)
+                dist=debian
+                ;;
+            "Ubuntu-Server "*)
+                dist=ubuntuserver
+                ;;
+            "Ubuntu "*)
+                dist=ubuntu
+                ;;
+        esac
+        version="$(echo "$diskinfo" | sed -e 's/^[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*$/\1/' | grep -E '^[0-9]+\.[0-9]+$')"
+    fi
+    test -n "$dist" \
+        || error "Could not detect Linux distribution"
+    test -n "$version" \
+        || error "Could not detect major/minor version"
+    echo "$dist-$version-$cdtype"
+}
+
 # Read arguments
-while getopts 'hvxo:' opt; do
+verbose=false
+setx=''
+preseedcfg=''
+updatetype=''
+output=''
+while getopts 'hvxkp:u:o:' opt; do
     case "$opt" in
         h)
             usage
             exit 0
+            ;;
+        v)
+            verbose=true
+            ;;
+        x)
+            setx='set -x'
+            ;;
+        k)
+            keepworkdir=true
+            ;;
+        p)
+            preseedcfg="$OPTARG"
+            if [ ! -r "$preseedcfg" ]; then
+                error "Preseed configuration $preseedcfg is not readable"
+            fi
+            ;;
+        u)
+            updatetype="$OPTARG"
+            case "$updatetype" in
+                VirtualBox)
+                    ;;
+                *)
+                    error "$updatetype is not supported VMTYPE (VirtualBox)"
+                    ;;
+            esac
+            ;;
+        o)
+            output="$OPTARG"
             ;;
         ?)
             error "Unrecognized option (try -h for help)"
             ;;
     esac
 done
+
+# Is input ISO image specified?
+if [ $OPTIND -ne $# ]; then
+    error "One ISO input image required (try -h for help)"
+fi
+input="${!OPTIND}"
+if [ ! -r "$input" ]; then
+    error "Input ISO image $input is not readable"
+fi
+
+# Determine output name if not specified
+if [ -z "$output" ]; then
+    output="$(echo "$input" | sed -e 's|\(\.[^\./]*$\)|-preseeded\1|')"
+    if [ "$input" = "$output" ]; then
+        output="$(dirname "$input")/preseeded-$(basename "$input")"
+    fi
+    info "Writing output to $output"
+fi
+
+# Track execution if requested
+$setx
+
+# Resolve some absolute directory paths
+inputabs="$(cd "$(dirname "$input")" && pwd)/$(basename "$input")"
+preseedcfgabs=''
+if [ -n "$preseedcfg" ]; then
+    preseedcfgabs="$(cd "$(dirname "$preseedcfg")" && pwd)/$(basename "$preseedcfg")"
+fi
+
+# Create work directory for building the image
+outputdir="$(cd $(dirname "$output") && pwd)"
+workdir="$(mktemp -d "$outputdir/$(basename "$output").XXXXXX")"
+info "Using work directory $workdir"
+
+# Extract the input image
+info "Extracting input image..."
+mkdir "$workdir/iso"
+pushd "$workdir/iso" > /dev/null 2>&1
+bsdtar xf "$inputabs" \
+    || error "Error while extracting input image"
+
+# Locate initrd.gz
+info "Locating initrd.gz..."
+initrdgz=''
+for irg in initrd.gz install/initrd.gz install.amd/initrd.gz; do
+    if [ -e "$irg" ]; then
+        initrdgz="$irg"
+        break
+    fi
+done
+if [ -z "$initrdgz" ]; then
+    initrdgz="$(find . -name initrd.gz -print)"
+    if [ ! -e "$initrdgz" ]; then
+        error "Did not find initrd.gz in ISO image"
+    fi
+fi
+info "Found $initrdgz"
+
+# Detect image type if necessary
+if [ -z "$preseedcfgabs" ]; then
+    info "Detecting image type..."
+    type="$(detect_image_type .)"
+    info "Detected type $type"
+    preseedcfgabs="@pkgdatadir@/preseed-$type.cfg"
+    if [ ! -e "$preseedcfgabs" ]; then
+        error "No default preseed configuration found for image type $type"
+    fi
+    info "Using preseeding configuration $preseedcfgabs"
+fi
+
+# Extract initrd.gz
+info "Extracting initrd.gz..."
+mkdir ../initrd
+cd ../initrd
+gzip -dc < "../iso/$initrdgz" | cpio -id 2> /dev/null \
+    || error "Error while extracting initrd.gz"
+
+# Insert preseeding configuration to initrd
+info "Inserting preseeding configuration..."
+if [ -e preseed.cfg ]; then
+    mv preseed.cfg original-preseed.cfg
+    cat > preseed.cfg <<EOS
+# Include original preseed configuration
+d-i preseed/include string original-preseed.cfg
+
+EOS
+    cat "$preseedcfgabs" >> preseed.cfg
+else
+    cp "$preseedcfgabs" preseed.cfg
+fi
+
+# Repackage initrd.gz
+info "Repackaging initrd.gz..."
+find . | cpio --create --format=newc | gzip -c > "../iso/$initrdgz"
 
 # vim:si:sw=4:sta:et
