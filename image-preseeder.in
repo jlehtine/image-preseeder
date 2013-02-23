@@ -1,0 +1,43 @@
+#! /bin/bash
+
+# Image Preseeder, a tool to create preseeded Linux installation images
+# Copyright 2013 Johannes Lehtinen
+#
+# Licensed under the MIT License, see LICENSE.md.
+
+SCRIPTNAME=image-preseeder
+
+# Set up error handling
+error () {
+    echo "ERROR: $SCRIPTNAME: $1" 1>&2
+    exit 1
+}
+set -e
+trap 'error "Error in line $LINENO"' ERR
+
+# Print usage
+usage () {
+    cat <<EOS
+Image Preseeder, a tool to create preseeded Linux installation images
+Copyright 2013 Johannes Lehtinen
+
+Licensed under the MIT License,
+see @docdir@/LICENSE.md.
+
+EOS
+}
+
+# Read arguments
+while getopts 'hvxo:' opt; do
+    case "$opt" in
+        h)
+            usage
+            exit 0
+            ;;
+        ?)
+            error "Unrecognized option (try -h for help)"
+            ;;
+    esac
+done
+
+# vim:si:sw=4:sta:et
