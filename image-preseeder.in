@@ -5,7 +5,16 @@
 #
 # Licensed under the MIT License, see LICENSE.md.
 
+# Name of the script
 SCRIPTNAME=image-preseeder
+
+# Directory containing the package data
+test -n "$IMAGE_PRESEEDER_PKGDATADIR" \
+    || IMAGE_PRESEEDER_PKGDATADIR='@pkgdatadir@'
+
+# Directory containing the documentation
+test -n "$IMAGE_PRESEEDER_DOCDIR" \
+    || IMAGE_PRESEEDER_DOCDIR='@docdir@'
 
 # Set up error handling
 error () {
@@ -57,7 +66,7 @@ options:
     -o OUTPUT.iso
          output file name for the preseeded image [IMAGE-preseeded.iso]
 
-See @docdir@/README.md.
+See $IMAGE_PRESEEDER_DOCDIR/README.md.
 EOS
 }
 
@@ -284,7 +293,7 @@ info "Detected type $type"
 
 # Detect preseeding configuration, if not specified
 if [ -z "$preseedcfg" ]; then
-    preseedcfg="@pkgdatadir@/preseed-$type.cfg"
+    preseedcfg="$IMAGE_PRESEEDER_PKGDATADIR/preseed-$type.cfg"
     if [ ! -r "$preseedcfg" ]; then
         error "No default preseed configuration found for image type $type"
     fi

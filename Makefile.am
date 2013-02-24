@@ -6,8 +6,8 @@
 bin_SCRIPTS = image-preseeder
 dist_doc_DATA = README.md LICENSE.md
 dist_pkgdata_DATA = \
-	lib/preseed-ubuntuserver-12.04-normal.cfg \
-	lib/preseed-ubuntu-12.04-mini.cfg
+	data/preseed-ubuntuserver-12.04-normal.cfg \
+	data/preseed-ubuntu-12.04-mini.cfg
 
 image-preseeder: $(srcdir)/image-preseeder.in Makefile
 	rm -f $@.tmp
