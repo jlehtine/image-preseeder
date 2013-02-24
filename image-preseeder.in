@@ -35,7 +35,7 @@ cleanup () {
 }
 trap cleanup EXIT
 
-# Print usage
+# Prints usage instructions to standard output
 usage () {
     cat <<EOS
 Image Preseeder, a tool to create preseeded Linux installation images
@@ -62,10 +62,44 @@ EOS
 }
 
 # Print information if verbose display selected
+#
+# Parameters:
+#   $1 - informational message to display
 info () {
     if [ "$verbose" = true ]; then
         echo "INFO: $SCRIPTNAME: $1"
     fi
+}
+
+# Converts path name to absolute pathname
+#
+# Parameters:
+#   $1 - path name
+# Outputs:
+#   absolute path name
+abspath () {
+    local pn="$1"
+    local abspn="$pn"
+    if ! echo "$pn" | grep -q -E '^/'; then
+        abspn="$(cd "$(dirname "$pn")" && pwd)/$(basename "$pn")" \
+            || error "Failed to convert path name $pn to absolute path name"
+    fi
+    echo "$abspn"
+}
+
+# Extracts ISO image
+#
+# Parameters:
+#   $1 - ISO image to be extracted
+#   $2 - target directory
+extract_iso_image () {
+    local image="$1"
+    local target="$2"
+    local absimage="$(abspath "$image")"
+    pushd "$target" > /dev/null 2>&1
+    bsdtar xf "$absimage" \
+        || error "Error while extracting ISO image $image"
+    popd > /dev/null 2>&1
 }
 
 # Detect image type
@@ -73,10 +107,10 @@ info () {
 # Parameters
 #   $1 - path to extracted image
 detect_image_type () {
-    dist=''
-    version=''
-    cdtype='normal'
-    infofile=''
+    local dist=''
+    local version=''
+    local cdtype='normal'
+    local infofile=''
     if [ -e "$1/.disk/info" ]; then
         infofile="$1/.disk/info"
     fi
@@ -99,11 +133,70 @@ detect_image_type () {
         esac
         version="$(echo "$diskinfo" | sed -e 's/^[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*$/\1/' | grep -E '^[0-9]+\.[0-9]+$')"
     fi
-    test -n "$dist" \
-        || error "Could not detect Linux distribution"
-    test -n "$version" \
-        || error "Could not detect major/minor version"
-    echo "$dist-$version-$cdtype"
+    if [ -n "$dist" ] && [ -n "$version" ]; then
+        echo "$dist-$version-$cdtype"
+    else
+        echo "unknown"
+    fi
+}
+
+# Preseeds initrd.gz with the specified preseed configuration
+#
+# Parameters:
+#   $1 - path to initrd
+#   $2 - preseed configuration to use
+preseed_initrd () {
+    local initrd="$1"
+    local initrdabs="$(abspath "$initrd")"
+    local preseedcfgabs="$(abspath "$2")"
+
+    # Extract initrd.gz
+    info "Extracting $initrd..."
+    mkdir "$workdir/initrd"
+    pushd "$workdir/initrd" > /dev/null 2>&1
+    gzip -dc < "$initrdabs" | cpio -id 2> /dev/null \
+        || error "Error extracting $initrd"
+
+    # Insert preseeding configuration to initrd
+    info "Inserting preseeding configuration..."
+    if [ -e preseed.cfg ]; then
+        mv preseed.cfg original-preseed.cfg
+        cat > preseed.cfg <<EOS
+# Include original preseed configuration
+d-i preseed/include string original-preseed.cfg
+
+EOS
+        cat "$preseedcfgabs" >> preseed.cfg
+    else
+        cp "$preseedcfgabs" preseed.cfg
+    fi
+
+    # Repackage initrd.gz
+    info "Repackaging $initrd..."
+    find . | cpio --create --format=newc 2> /dev/null | gzip -c > "$initrdabs" \
+        || error "Error repackaging $initrd"
+    popd > /dev/null 2>&1
+    rm -rf "$workdir/initrd"
+
+}
+
+# Generates ISO image.
+#
+# Parameters:
+#   $1 - source directory
+#   $2 - output image name
+#   $3 - path to isolinux.bin within the source directory
+#   $4 - path to boot.cat within the source directory
+generate_iso_image () {
+    local sourcedir="$1"
+    local output="$2"
+    local isolinuxbin="$3"
+    local bootcat="$4"
+    local outputtmp="$workdir/$(basename "$output")"
+    genisoimage -quiet -o "$outputtmp" -b "$isolinuxbin" -c "$bootcat" -boot-info-table -no-emul-boot -R -input-charset default "$sourcedir" \
+        || error "Error generating ISO image $output"
+    mv "$outputtmp" "$output" \
+        || error "Error writing or replacing $output"
 }
 
 # Read arguments
@@ -173,117 +266,76 @@ fi
 # Track execution if requested
 $setx
 
-# Resolve some absolute directory paths
-inputabs="$(cd "$(dirname "$input")" && pwd)/$(basename "$input")"
-preseedcfgabs=''
-if [ -n "$preseedcfg" ]; then
-    preseedcfgabs="$(cd "$(dirname "$preseedcfg")" && pwd)/$(basename "$preseedcfg")"
-fi
-
 # Create work directory for building the image
-outputdir="$(cd $(dirname "$output") && pwd)"
-workdir="$(mktemp -d "$outputdir/$(basename "$output").XXXXXX")"
+outputdirabs="$(abspath "$(dirname "$output")")"
+workdir="$(mktemp -d "$outputdirabs/$(basename "$output").XXXXXX")" \
+    || error "Error creating work directory in $outputdirabs"
 info "Using work directory $workdir"
 
 # Extract the input image
 info "Extracting input image..."
 mkdir "$workdir/iso"
-pushd "$workdir/iso" > /dev/null 2>&1
-bsdtar xf "$inputabs" \
-    || error "Error while extracting input image"
+extract_iso_image "$input" "$workdir/iso"
 
-# Locate initrd.gz
-info "Locating initrd.gz..."
-initrdgz=''
-for irg in initrd.gz install/initrd.gz install.amd/initrd.gz; do
-    if [ -e "$irg" ]; then
-        initrdgz="$irg"
-        break
-    fi
-done
-if [ -z "$initrdgz" ]; then
-    initrdgz="$(find . -name initrd.gz -print)"
-    if [ ! -e "$initrdgz" ]; then
-        error "Did not find initrd.gz in ISO image"
-    fi
-fi
-info "Found $initrdgz"
+# Detect image type
+info "Detecting image type..."
+type="$(detect_image_type "$workdir/iso")"
+info "Detected type $type"
 
-# Detect image type if necessary
-if [ -z "$preseedcfgabs" ]; then
-    info "Detecting image type..."
-    type="$(detect_image_type .)"
-    info "Detected type $type"
-    preseedcfgabs="@pkgdatadir@/preseed-$type.cfg"
-    if [ ! -e "$preseedcfgabs" ]; then
+# Detect preseeding configuration, if not specified
+if [ -z "$preseedcfg" ]; then
+    preseedcfg="@pkgdatadir@/preseed-$type.cfg"
+    if [ ! -r "$preseedcfg" ]; then
         error "No default preseed configuration found for image type $type"
     fi
-    info "Using preseeding configuration $preseedcfgabs"
+    info "Using preseeding configuration $preseedcfg"
 fi
 
-# Extract initrd.gz
-info "Extracting initrd.gz..."
-mkdir ../initrd
-cd ../initrd
-gzip -dc < "../iso/$initrdgz" | cpio -id 2> /dev/null \
-    || error "Error while extracting initrd.gz"
-
-# Insert preseeding configuration to initrd
-info "Inserting preseeding configuration..."
-if [ -e preseed.cfg ]; then
-    mv preseed.cfg original-preseed.cfg
-    cat > preseed.cfg <<EOS
-# Include original preseed configuration
-d-i preseed/include string original-preseed.cfg
-
-EOS
-    cat "$preseedcfgabs" >> preseed.cfg
-else
-    cp "$preseedcfgabs" preseed.cfg
+# Process initrd.gz to include preseeding configuration
+info "Preseeding initrd..."
+foundinitrd=false
+preseedcfgabs="$(abspath "$preseedcfg")"
+pushd "$workdir/iso" > /dev/null 2>&1
+for initrd in initrd.gz install/initrd.gz install.*/initrd.gz; do
+    if [ -e "$initrd" ]; then
+        preseed_initrd "$initrd" "$preseedcfgabs"
+        foundinitrd=true
+    fi
+done
+if [ "$foundinitrd" = false ]; then
+    error "Did not find initrd.gz in ISO image"
 fi
 
-# Repackage initrd.gz
-info "Repackaging initrd.gz..."
-find . | cpio --create --format=newc 2> /dev/null | gzip -c > "../iso/$initrdgz"
-
-# Locate isolinux.cfg
-cd ../iso
-info "Locating isolinux.cfg..."
+# Locate isolinux
+info "Locating isolinux..."
 isolinuxcfg=''
 for ilg in isolinux.cfg isolinux/isolinux.cfg; do
     if [ -e "$ilg" ]; then
         isolinuxcfg="$ilg"
+        info "Found $isolinuxcfg"
         break
     fi
 done
-if [ -z "$isolinuxcfg" ]; then
-    isolinuxcfg="$(find . -name isolinux.cfg -print)"
-    if [ ! -e "$isolinuxcfg" ]; then
-        error "Did not find isolinux.cfg in ISO image"
-    fi
-fi
-info "Found $isolinuxcfg"
 isolinuxdir="$(dirname "$isolinuxcfg")"
-isolinuxpfx=''
-test isolinuxdir='.' \
-    || isolinuxpfx="$isolinuxdir/"
-if [ ! -e "${isolinuxpfx}isolinux.bin" ]; then
-    error "Did not find isolinux.bin in $isolinuxdir"
-fi
-if [ ! -e "${isolinuxpfx}boot.cat" ]; then
-    error "Did not find boot.cat in $isolinuxdir"
-fi
+isolinuxprefix="$isolinuxdir/"
+test ! "$isolinuxprefix" = ./ \
+    || isolinuxprefix=''
+isolinuxbin="${isolinuxprefix}isolinux.bin"
+test -e "$isolinuxbin" \
+    || error "Did not find isolinux.bin where expected"
+bootcat="${isolinuxprefix}boot.cat"
+test -e "$bootcat" \
+    || error "Did not find boot.cat where expected"
 
 # Add timeout to installation prompt
-sed -e 's/^timeout 0/timeout 1/' < "$isolinuxcfg" > "$isolinuxcfg.new"
+info "Adding one second timeout to $isolinuxcfg..."
+sed -e 's/timeout [0-9][0-9]*/timeout 1/' < "$isolinuxcfg" > "$isolinuxcfg.new"
 mv "$isolinuxcfg.new" "$isolinuxcfg"
+popd > /dev/null 2>&1
 
 # Repackage ISO image
-info "Repackaging ISO image..."
-popd > /dev/null 2>&1
-outputtmp="$workdir/$(basename "$output")"
-genisoimage -quiet -o "$outputtmp" -b "${isolinuxpfx}isolinux.bin" -c "${isolinuxpfx}boot.cat" -boot-info-table -no-emul-boot -R -input-charset default "$workdir/iso"
-mv "$outputtmp" "$output"
+info "Repackaging ISO image into $output..."
+generate_iso_image "$workdir/iso" "$output" "$isolinuxbin" "$bootcat"
 
 # Remove work directory
 info "Removing work directory..."
