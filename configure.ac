@@ -3,7 +3,7 @@
 #
 # Licensed under the MIT License, see LICENSE.md.
 
-AC_INIT([image-preseeder],[1.0])
+AC_INIT([image-preseeder],[1.0-SNAPSHOT])
 AC_CONFIG_SRCDIR([image-preseeder.in])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([
