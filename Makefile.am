@@ -9,6 +9,8 @@ dist_pkgdata_DATA = \
 	data/preseed-ubuntuserver-12.04-normal.cfg \
 	data/preseed-ubuntu-12.04-mini.cfg
 
+EXAMPLE_TARGETS = examples clean-examples
+
 # Environment variables for the examples when started from the build tree
 IMAGE_PRESEEDER ?= $(abs_top_builddir)/image-preseeder
 IMAGE_PRESEEDER_PKGDATADIR ?= $(abs_top_srcdir)/data
@@ -20,7 +22,7 @@ image-preseeder: $(srcdir)/image-preseeder.in Makefile
 	sed -e 's|@pkglibdir[@]|$(pkglibdir)|g' \
 	  -e 's|@pkgdatadir[@]|$(pkgdatadir)|g' \
 	  -e 's|@docdir[@]|$(docdir)|g' \
-	  < $(srcdir)/$@.in > $@.tmp
+	  < '$(srcdir)'/$@.in > $@.tmp
 	chmod +x $@.tmp
 	chmod go-w $@.tmp
 	mv $@.tmp $@
@@ -29,11 +31,12 @@ clean-local:
 	-rm -f image-preseeder
 
 examples: image-preseeder
+
+$(EXAMPLE_TARGETS):
 	mkdir -p examples
 	vopts=''; \
-	  test -f examples/Makefile \
-	    || test -z "$(abs_srcdir)" \
-	    || vopts="-f $(abs_srcdir)/examples/Makefile abs_srcdir=$(abs_srcdir)/examples VPATH=$(abs_srcdir)/examples"; \
-	  $(MAKE) -C examples $$vopts $@
+	test '$(srcdir)' = . \
+	  || vopts='-f '\''$(abs_srcdir)'\''/examples/Makefile SOURCE_DIR='\''$(abs_srcdir)'\''/examples'; \
+	eval '$(MAKE)' -C examples $$vopts
 
-.PHONY: examples
+.PHONY: $(EXAMPLE_TARGETS)

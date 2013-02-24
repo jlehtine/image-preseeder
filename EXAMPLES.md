@@ -35,8 +35,9 @@ name of the example.
 
 The examples use Makefile rules to run the example incrementally. This means
 that the successfully performed steps are not repeated on re-runs. To rerun the
-steps you have to first run `make clean`. The downloaded original installation
-images are cached and are not re-downloaded unless you manually remove them.
+steps you have to first run `make clean-examples`. The downloaded original
+installation images are cached and are not re-downloaded unless you manually
+remove them.
 
 
 Options
@@ -65,6 +66,11 @@ window to illustrate the progress within the virtual machine. If you are
 executing the examples in a non-desktop environment or wish to hide the console
 for more realistic example of how automated test environment would behave, you
 should set this to `VBoxHeadless`.
+
+### IMAGE_PRESEEDER_VBMANAGE ###
+
+Specifies the command used to manage VirtualBox virtual machines. Defaults to
+`VBoxManage`.
 
 
 Example cases
