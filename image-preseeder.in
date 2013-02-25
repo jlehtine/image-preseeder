@@ -36,7 +36,7 @@ keepworkdir=false
 cleanup () {
     if [ -n "$workdir" ]; then
         if [ "$keepworkdir" = true ]; then
-            echo "INFO: $SCRIPTNAME: Kept work directory $workdir" 1>&2
+            echo "INFO: $SCRIPTNAME: Kept work directory $workdir"
         else
             rm -rf "$workdir"
         fi
@@ -57,7 +57,7 @@ options:
     -h   display this help text and exit
     -v   be verbose and display informational messages
     -x   trace execution of commands
-    -k   keep work directory if execution is interrupted
+    -k   keep work directory
     -p PRESEED.cfg
          add PRESEED.cfg to the preseeding configuration chain
     -I INCLUDED
@@ -163,14 +163,21 @@ preseed_initrd () {
 
     # Extract initrd.gz
     info "Extracting $initrd..."
+    rm -rf "$workdir/initrd"
     mkdir "$workdir/initrd"
     pushd "$workdir/initrd" > /dev/null 2>&1
     gzip -dc < "$initrdabs" | cpio -id 2> /dev/null \
         || error "Error extracting $initrd"
+    popd > /dev/null 2>&1
 
     # Insert preseeding configuration to initrd
     info "Inserting preseeding configuration..."
-    local -a preseedchain=("${preseedcfgs[@]}")
+    local -a preseedchain=()
+    for psc in "${preseedcfgs[@]}"; do
+        cp "$psc" "$workdir/initrd"
+        preseedchain[${#preseedchain[*]}]="$(basename "$psc")"
+    done
+    pushd "$workdir/initrd" > /dev/null 2>&1
     if [ -e preseed.cfg ]; then
         mv preseed.cfg original-preseed.cfg
         preseedchain=(original-preseed.cfg "${preseedchain[@]}")
@@ -187,7 +194,8 @@ EOS
     find . | cpio --create --format=newc 2> /dev/null | gzip -c > "$initrdabs" \
         || error "Error repackaging $initrd"
     popd > /dev/null 2>&1
-    rm -rf "$workdir/initrd"
+
+    # Do not remove so that it is left unpacked if work directory is kept
 
 }
 
@@ -213,7 +221,7 @@ generate_iso_image () {
 # Read arguments
 verbose=false
 setx=''
-declare -a optpreseedcfgs=()
+declare -a preseedcfgs=()
 declare -a includes=()
 preseeddefaults=true
 updatetype=''
@@ -237,7 +245,7 @@ while getopts 'hvxkp:I:Du:o:' opt; do
             if [ ! -r "$OPTARG" ]; then
                 error "Preseed configuration $OPTARG is not readable"
             fi
-            optpreseedcfgs[${#optpreseedcfgs[*]}]="$OPTARG"
+            preseedcfgs[${#preseedcfgs[*]}]="$OPTARG"
             ;;
         I)
             if [ ! -r "$OPTARG" ]; then
@@ -305,7 +313,6 @@ type="$(detect_image_type "$workdir/iso")"
 info "Detected type $type"
 
 # Detect default preseeding configuration, if not omitted
-declare -a preseedcfgs
 if [ "$preseeddefaults" = true ]; then
     defaultpreseedcfg="$IMAGE_PRESEEDER_PKGDATADIR/preseed-$type.cfg"
     if [ ! -r "$defaultpreseedcfg" ]; then
@@ -368,15 +375,8 @@ sed -e 's/timeout [0-9][0-9]*/timeout 1/' < "$isolinuxcfg" > "$isolinuxcfg.new"
 mv "$isolinuxcfg.new" "$isolinuxcfg"
 popd > /dev/null 2>&1
 
-# Copy installation script, if any
-
 # Repackage ISO image
 info "Repackaging ISO image into $output..."
 generate_iso_image "$workdir/iso" "$output" "$isolinuxbin" "$bootcat"
-
-# Remove work directory
-info "Removing work directory..."
-rm -rf "$workdir"
-workdir=''
 
 # vim:si:sw=4:sta:et

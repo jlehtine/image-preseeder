@@ -6,8 +6,8 @@
 bin_SCRIPTS = image-preseeder
 dist_doc_DATA = README.md LICENSE.md
 dist_pkgdata_DATA = \
-	data/preseed-ubuntuserver-12.04-normal.cfg \
-	data/preseed-ubuntu-12.04-mini.cfg
+	data/preseed-ubuntu-server-12.04-normal.cfg \
+	data/include-ubuntu-server-12.04-normal
 
 EXAMPLE_TARGETS = examples clean-examples
 
