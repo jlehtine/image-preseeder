@@ -76,16 +76,9 @@ Specifies the command used to manage VirtualBox virtual machines. Defaults to
 Example cases
 -------------
 
-### ubuntu-mini-net ###
+### ubuntu-server-install ###
 
-Shows how to convert Ubuntu mini image into a preseeded image and how to
+Shows how to convert Ubuntu server image into a preseeded image and how to
 non-interactively create and install a new VirtualBox virtual machine using the
 preseeded image. Finally installs Apache web server to the virtual machine as a
 separate externally controlled non-interactive update.
-
-### ubuntu-server-wonet ###
-
-Shows how to convert Ubuntu server image into a preseeded image and how to
-non-interactively create and install a new VirtualBox virtual with no network
-connectivity using the preseeded image. Finally runs some operations on the
-virtual machine using externally controlled non-interactive scripts.

@@ -9,7 +9,7 @@ VPATH = $(SOURCE_DIR)
 endif
 
 # List of examples
-EXAMPLES = ubuntu-mini-net
+EXAMPLES = ubuntu-server-install
 
 # Targets used for examples
 EXAMPLE_TARGETS = examples clean-examples
