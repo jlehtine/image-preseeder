@@ -8,8 +8,9 @@ installation of Linux virtual machines to be used for automated integration or
 acceptance tests.
 
 Image Preseeder can create installation images that allow the resulting
-VirtualBox virtual machine to be updated non-interactively from scripts outside
-the virtual machine, for example to do automated package installation tests.
+VirtualBox virtual machine to be updated and controlled non-interactively from
+scripts outside the virtual machine, for example to do automated package
+installation tests.
 
 Image Preseeder currently supports the following Linux distributions:
 
@@ -26,8 +27,8 @@ Copyright 2013 Johannes Lehtinen
 Image Preseeder is licensed under the MIT License, see LICENSE.md.
 
 
-Obtaining
----------
+Installation
+------------
 
 
 Usage
@@ -39,5 +40,5 @@ Author
 
 Image Preseeder author is Johannes Lehtinen.
 
-Feel free to send me comments, feedback or pull requests to
+Feel free to send me comments, bug reports or pull requests to
 <johannes.lehtinen@iki.fi>.

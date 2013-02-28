@@ -30,7 +30,7 @@ examples by running `make examples` in the *TOP* build directory.
 
 Files downloaded and produced by the examples are stored by default in the
 examples directory. The examples also create and register VirtualBox virtual
-machines with name *image-preseeder-examples-EXAMPLE* where *EXAMPLE* is the
+machines with name *image-preseeder-example-EXAMPLE* where *EXAMPLE* is the
 name of the example.
 
 The examples use Makefile rules to run the example incrementally. This means
@@ -46,19 +46,19 @@ Options
 You can set and export some environment variables to configure the behavior of
 examples.
 
-### IMAGE_PRESEEDER ###
+### `IMAGE_PRESEEDER` ###
 
 Specifies the `image-preseeder` script to be used. By default uses the one
 installed in the path. The Makefile in top build directory sets this to the
 newly built script by default.
 
-### IMAGE_PRESEEDER_STORAGE ###
+### `IMAGE_PRESEEDER_STORAGE` ###
 
 Specifies where the large files, i.e. downloaded image files, preseeded image
 files and virtual machines, are stored. By default these are stored in
 `examples/storage`.
 
-### IMAGE_PRESEEDER_VBEXECUTOR ###
+### `IMAGE_PRESEEDER_VBEXECUTOR` ###
 
 Specifies the command used to synchronously execute VirtualBox virtual machines
 when running the examples. Defaults to `VirtualBox` which shows the console
@@ -67,7 +67,7 @@ executing the examples in a non-desktop environment or wish to hide the console
 for more realistic example of how automated test environment would behave, you
 should set this to `VBoxHeadless`.
 
-### IMAGE_PRESEEDER_VBMANAGE ###
+### `IMAGE_PRESEEDER_VBMANAGE` ###
 
 Specifies the command used to manage VirtualBox virtual machines. Defaults to
 `VBoxManage`.

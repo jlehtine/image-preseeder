@@ -4,7 +4,8 @@
 # Licensed under the MIT License, see LICENSE.md.
 
 bin_SCRIPTS = image-preseeder
-dist_doc_DATA = README.md LICENSE.md EXAMPLES.md
+dist_doc_DATA = README.md LICENSE.md EXAMPLES.md \
+	README.html LICENSE.html EXAMPLES.html
 dist_pkgdata_DATA = \
 	data/preseed-ubuntu-server-12.04-normal.cfg \
 	data/include-ubuntu-server-12.04-normal
@@ -39,6 +40,12 @@ $(EXAMPLE_TARGETS): $(EXAMPLES_MAKEFILES)
 	  -e 's|@docdir[@]|$(docdir)|g' \
 	  < '$<' > '$@.tmp'
 	chmod --reference='$<' '$@.tmp'
+	mv '$@.tmp' '$@'
+
+%.html: %.md
+	rm -f '$@.tmp'
+	mkdir -p "`dirname '$@'`"
+	markdown '$<' > '$@.tmp'
 	mv '$@.tmp' '$@'
 
 .PHONY: $(EXAMPLE_TARGETS)
