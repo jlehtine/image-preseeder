@@ -20,7 +20,7 @@ $(EXAMPLE_TARGETS):
 	  vopts=''; \
 	  test -z '$(SOURCE_DIR)' \
 	    || vopts='-f '\''$(SOURCE_DIR)'\''/$$example/Makefile SOURCE_DIR='\''$(SOURCE_DIR)'\''/$$example'; \
-	  eval '$(MAKE)' -C $$example $$vopts || exit 1; \
+	  eval '$(MAKE)' -C $$example $$vopts $@ || exit 1; \
 	done
 
 .PHONY: $(EXAMPLE_TARGETS)

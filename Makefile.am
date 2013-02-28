@@ -37,6 +37,6 @@ $(EXAMPLE_TARGETS):
 	vopts=''; \
 	test '$(srcdir)' = . \
 	  || vopts='-f '\''$(abs_srcdir)'\''/examples/Makefile SOURCE_DIR='\''$(abs_srcdir)'\''/examples'; \
-	eval '$(MAKE)' -C examples $$vopts
+	eval '$(MAKE)' -C examples $$vopts $@
 
 .PHONY: $(EXAMPLE_TARGETS)
