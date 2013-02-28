@@ -12,7 +12,7 @@ endif
 
 # Settings for the example
 IMAGE_PRESEEDER ?= image-preseeder
-ABS_IMAGE_PRESEEDER = $(shell which '$(IMAGE_PRESEEDER'))
+ABS_IMAGE_PRESEEDER = $(shell which '$(IMAGE_PRESEEDER)')
 IMAGE_PRESEEDER_STORAGE ?= ../storage
 IMAGE_PRESEEDER_VBEXECUTOR ?= VirtualBox
 IMAGE_PRESEEDER_VBMANAGE ?= VBoxManage
