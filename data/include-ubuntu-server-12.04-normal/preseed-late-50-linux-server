@@ -1,4 +1,4 @@
 #! /bin/sh
 
 # Late install server kernel
-apt-install linux-server
+exec apt-install linux-server

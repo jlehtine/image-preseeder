@@ -4,15 +4,13 @@
 # Licensed under the MIT License, see LICENSE.md.
 
 # To support builds in a separate build directory
-ifdef SOURCE_DIR
-    VPATH = $(SOURCE_DIR)
-else
-    SOURCE_DIR = $(shell pwd)
+CURDIR = $(shell pwd)
+ifdef IMAGE_PRESEEDER_TOPSRCDIR
+    VPATH = $(IMAGE_PRESEEDER_TOPSRCDIR)/examples/ubuntu-server-install
 endif
 
 # Settings for the example
 IMAGE_PRESEEDER ?= image-preseeder
-ABS_IMAGE_PRESEEDER = $(shell which '$(IMAGE_PRESEEDER)')
 IMAGE_PRESEEDER_STORAGE ?= ../storage
 IMAGE_PRESEEDER_VBEXECUTOR ?= VirtualBox
 IMAGE_PRESEEDER_VBMANAGE ?= VBoxManage
@@ -32,9 +30,9 @@ UBUNTU_SERVER_ISO = $(IMAGE_PRESEEDER_STORAGE)/ubuntu-12.04.2-server-i386.iso
 UBUNTU_SERVER_ISO_SHA256 = ubuntu-12.04.2-server-i386.sha256
 UBUNTU_SERVER_ISO_PRESEEDED = $(IMAGE_PRESEEDER_STORAGE)/ubuntu-12.04.2-server-i386-preseeded.iso
 VMBASE = $(IMAGE_PRESEEDER_STORAGE)/vm-$(EXAMPLE)
-VMNAME = image-preseed-examples-$(EXAMPLE)
+VMNAME = image-preseeder-example-$(EXAMPLE)
 
-examples: stamp-vm-updated
+examples: stamp-vm-apache-installed
 
 # ------------------------------------------------------------------------
 # Download the original Ubuntu server image
@@ -48,28 +46,24 @@ $(UBUNTU_SERVER_ISO):
 # ------------------------------------------------------------------------
 # Verify integrity of the server image
 # ------------------------------------------------------------------------
-stamp-verified-iso: $(UBUNTU_SERVER_ISO) $(UBUNTU_SERVER_ISO_SHA256)
+stamp-verified-iso: $(UBUNTU_SERVER_ISO_SHA256) $(UBUNTU_SERVER_ISO)
 	@echo '*** Verifying integrity of the downloaded image ***'
-	cd '$(IMAGE_PRESEEDER_STORAGE)' \
-	    && shasum -a 256 -c '$(SOURCE_DIR)/$(UBUNTU_SERVER_ISO_SHA256)'
+	cat '$<' | ( cd $(IMAGE_PRESEEDER_STORAGE) && shasum -a 256 -c )
 	touch $@
 
 # ------------------------------------------------------------------------
-# Create preseeded Ubuntu server image
+# Create preseeded Ubuntu server image for non-networked installs
 # ------------------------------------------------------------------------
-$(UBUNTU_SERVER_ISO_PRESEEDED): $(UBUNTU_SERVER_ISO) stamp-verified-iso $(ABS_IMAGE_PRESEEDER)
+$(UBUNTU_SERVER_ISO_PRESEEDED): $(UBUNTU_SERVER_ISO) stamp-verified-iso
 	@echo "*** Preseeding Ubuntu server image ***"
-	$(IMAGE_PRESEEDER) -v -o '$@' '$<'
+	$(IMAGE_PRESEEDER) -v -c virtualbox -o '$@' '$<'
 
 # ------------------------------------------------------------------------
 # Create virtual machine
 # ------------------------------------------------------------------------
 stamp-vm-created:
 	@echo "*** Removing existing virtual machine, if any ***"
-	vopts=''; \
-	  test -z '$(VPATH)' \
-	    || vopts='-f '\''$(SOURCE_DIR)'\''/Makefile SOURCE_DIR='\''$(SOURCE_DIR)'\'; \
-	  eval '$(MAKE)' $$vopts clean-vm
+	$(MAKE) clean-vm
 	@echo "*** Create and configure new virtual machine ***"
 	'$(VBOXMANAGE)' createvm --name $(VMNAME) --ostype Ubuntu --register --basefolder '$(VMBASE)'
 	'$(VBOXMANAGE)' modifyvm $(VMNAME) --memory 512 --vram 12 --pae off --rtcuseutc on --mouse usbtablet
@@ -102,10 +96,33 @@ stamp-vm-installed: $(UBUNTU_SERVER_ISO_PRESEEDED) stamp-vm-created
 	touch $@
 
 # ------------------------------------------------------------------------
-# Update virtual machine using external script
+# Install Apache to virtual machine using external script
 # ------------------------------------------------------------------------
-stamp-vm-updated: stamp-vm-installed
-	false # TBD
+stamp-vm-apache-installed: install-apache stamp-vm-installed
+	@echo "*** Restore installed snapshot ***"
+	'$(VBOXMANAGE)' snapshot $(VMNAME) restore installed
+	@echo "*** Setup executor to install Apache on VM start ***"
+	rm -rf executor
+	mkdir -p executor
+	cp '$<' executor/execute
+	'$(VBOXMANAGE)' sharedfolder add $(VMNAME) --name image-preseeder-executor --hostpath $(CURDIR)/executor
+	@echo "*** Start virtual machine, displaying executor log ***"
+	touch executor/execute.log
+	tail -f executor/execute.log & \
+	    tailpid=$$!; \
+	    '$(VBOX)' --startvm $(VMNAME); \
+	    ret=$$?; \
+	    kill $$tailpid; \
+	    exit $$ret
+	@echo "*** Check if installation was successful ***"
+	test -e executor/success
+	@echo "*** Unmount executor directory to prevent re-installation ***"
+	'$(VBOXMANAGE)' sharedfolder remove $(VMNAME) --name image-preseeder-executor
+	@echo "*** Take or replace snapshot of the apache-installed state ***"
+	-'$(VBOXMANAGE)' snapshot $(VMNAME) delete apache-installed
+	'$(VBOXMANAGE)' snapshot $(VMNAME) take apache-installed
+	@echo "*** Create Apache installed stamp ***"
+	touch $@
 
 # ------------------------------------------------------------------------
 # Clean examples for re-run

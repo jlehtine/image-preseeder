@@ -63,9 +63,9 @@ options:
     -I INCLUDED
          include file or directory INCLUDED to /cdrom/image-preseeder
     -D   omit default preseeding configuration and installation scripts
-    -u VMTYPE
-         enable non-interactive externally initiated updates of the resulting
-         virtual machine of type VMTYPE (only "VirtualBox" supported)
+    -c VMTYPE
+         enable non-interactive external control of the resulting virtual
+         machine of type VMTYPE (only "virtualbox" supported for now)
     -o OUTPUT.iso
          output preseeded image to OUTPUT.iso [IMAGE-preseeded.iso]
 
@@ -224,9 +224,9 @@ setx=''
 declare -a preseedcfgs=()
 declare -a includes=()
 preseeddefaults=true
-updatetype=''
+controlvm=''
 output=''
-while getopts 'hvxkp:I:Du:o:' opt; do
+while getopts 'hvxkp:I:Dc:o:' opt; do
     case "$opt" in
         h)
             usage
@@ -256,13 +256,13 @@ while getopts 'hvxkp:I:Du:o:' opt; do
         D)
             preseeddefaults=false
             ;;
-        u)
-            updatetype="$OPTARG"
-            case "$updatetype" in
-                VirtualBox)
+        c)
+            controlvm="$OPTARG"
+            case "$controlvm" in
+                virtualbox)
                     ;;
                 *)
-                    error "$updatetype is not supported VMTYPE (VirtualBox)"
+                    error "$controlvm is not supported VMTYPE (only virtualbox supported for now)"
                     ;;
             esac
             ;;
@@ -313,6 +313,7 @@ type="$(detect_image_type "$workdir/iso")"
 info "Detected type $type"
 
 # Detect default preseeding configuration, if not omitted
+info "Detecting default preseeding configuration..."
 if [ "$preseeddefaults" = true ]; then
     defaultpreseedcfg="$IMAGE_PRESEEDER_PKGDATADIR/preseed-$type.cfg"
     if [ ! -r "$defaultpreseedcfg" ]; then
@@ -323,24 +324,35 @@ if [ "$preseeddefaults" = true ]; then
 fi
 
 # Detect default includes, if any
+info "Detecting default includes..."
 if [ "$preseeddefaults" = true ]; then
     declare -a defincludes=()
     for f in "$IMAGE_PRESEEDER_PKGDATADIR/include-$type/"*; do
         if [ -e "$f" ]; then
+            info "Including $f"
             defincludes[${#defincludes[*]}]="$f"
         fi
     done
     includes=("${defincludes[@]}" "${includes[@]}")
 fi
 
+# Include external control setup, if requested
+if [ -n "$controlvm" ]; then
+    info "Including external control setup..."
+    for f in "$IMAGE_PRESEEDER_PKGDATADIR/include-control-$controlvm/"*; do
+        if [ -e "$f" ]; then
+            includes[${#includes[*]}]="$f"
+        fi
+    done
+fi
+
 # Process initrd.gz to include preseeding configuration
 info "Preseeding initrd..."
 foundinitrd=false
-preseedcfgabs="$(abspath "$preseedcfg")"
-pushd "$workdir/iso" > /dev/null 2>&1
 for initrd in initrd.gz install/initrd.gz install.*/initrd.gz; do
-    if [ -e "$initrd" ]; then
-        preseed_initrd "$initrd" "$preseedcfgabs"
+    initrdabs="$workdir/iso/$initrd"
+    if [ -e "$initrdabs" ]; then
+        preseed_initrd "$initrdabs"
         foundinitrd=true
     fi
 done
@@ -352,7 +364,7 @@ fi
 info "Locating isolinux..."
 isolinuxcfg=''
 for ilg in isolinux.cfg isolinux/isolinux.cfg; do
-    if [ -e "$ilg" ]; then
+    if [ -e "$workdir/iso/$ilg" ]; then
         isolinuxcfg="$ilg"
         info "Found $isolinuxcfg"
         break
@@ -363,17 +375,26 @@ isolinuxprefix="$isolinuxdir/"
 test ! "$isolinuxprefix" = ./ \
     || isolinuxprefix=''
 isolinuxbin="${isolinuxprefix}isolinux.bin"
-test -e "$isolinuxbin" \
+test -e "$workdir/iso/$isolinuxbin" \
     || error "Did not find isolinux.bin where expected"
 bootcat="${isolinuxprefix}boot.cat"
-test -e "$bootcat" \
+test -e "$workdir/iso/$bootcat" \
     || error "Did not find boot.cat where expected"
 
 # Add timeout to installation prompt
-info "Adding one second timeout to $isolinuxcfg..."
-sed -e 's/timeout [0-9][0-9]*/timeout 1/' < "$isolinuxcfg" > "$isolinuxcfg.new"
-mv "$isolinuxcfg.new" "$isolinuxcfg"
-popd > /dev/null 2>&1
+isolinuxcfgabs="$workdir/iso/$isolinuxcfg"
+info "Adding one second timeout to $isolinuxcfgabs..."
+sed -e 's/timeout [0-9][0-9]*/timeout 1/' < "$isolinuxcfgabs" > "$isolinuxcfgabs.new"
+mv "$isolinuxcfgabs.new" "$isolinuxcfgabs"
+
+# Copy included files to image-preseeder directory in ISO image
+if [ "${#includes[*]}" -gt 0 ]; then
+    info "Copying included files to ISO image..."
+    mkdir -p "$workdir/iso/image-preseeder"
+    for f in "${includes[@]}"; do
+        cp -r "$f" "$workdir/iso/image-preseeder"
+    done
+fi
 
 # Repackage ISO image
 info "Repackaging ISO image into $output..."

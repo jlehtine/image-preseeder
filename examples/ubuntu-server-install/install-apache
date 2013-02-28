@@ -1,0 +1,52 @@
+#! /bin/bash
+
+# Shutdown the virtual machine upon exit
+trap 'shutdown -h now' EXIT
+
+# Abort on error
+set -e
+
+# Print some logging
+cat <<EOS
+
+--------------------------------------------------------------------------
+* This is output of install-apache script being executed within the
+* preseeded virtual machine
+--------------------------------------------------------------------------
+
+EOS
+
+# Turn on execution trace to track steps
+echo "install-apache: Turning on execution trace (set -x)..."
+set -x
+
+# Install Apache 2 packages
+echo "install-apache: Installing Apache 2..."
+apt-get -y install apache2
+
+# Prepare home page
+echo "install-apache: Replacing default home page with custom one..."
+rm -f /var/www/*
+cat > /var/www/index.html <<EOS
+<html>
+  <head>
+    <title>Image Preseeder example</title>
+  </head>
+  <body>
+    <h1>*Drum roll*</h1>
+    <p>Your virtual machine is now serving this home page.</p>
+  </body>
+</html>
+EOS
+
+# Inform the external controller about successful install
+echo "install-apache: Creating stamp file to signal successful outcome..."
+touch /image-preseeder-executor/success
+
+# Log completion
+cat <<EOS
+
+--------------------------------------------------------------------------
+* Output of install-apache script ends here
+--------------------------------------------------------------------------
+EOS
