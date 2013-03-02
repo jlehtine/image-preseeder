@@ -4,10 +4,11 @@
 # Licensed under the MIT License, see LICENSE.md.
 
 AC_INIT([image-preseeder],[1.0-SNAPSHOT])
-AC_CONFIG_SRCDIR([image-preseeder.in])
+AC_CONFIG_SRCDIR([image-preseeder.template])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([
     Makefile
+    testsuite/Makefile
 ])
 AC_OUTPUT
 

@@ -3,6 +3,7 @@
 #
 # Licensed under the MIT License, see LICENSE.md.
 
+SUBDIRS = testsuite
 bin_SCRIPTS = image-preseeder
 dist_doc_DATA = README.md LICENSE.md EXAMPLES.md \
 	README.html LICENSE.html EXAMPLES.html
