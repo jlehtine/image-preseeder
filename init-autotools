@@ -16,7 +16,7 @@ set -e
 trap 'error "Error in line $LINENO"' ERR
 
 # Test that we are in correct directory
-test -f image-preseeder.in \
+test -f image-preseeder.template \
     || error "In wrong working directory (image-preseeder.in not found)"
 
 # Initialize autotools verbosely
