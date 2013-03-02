@@ -27,10 +27,10 @@ export IMAGE_PRESEEDER_DOCDIR
 # Default storage directory (can be overridden)
 IMAGE_PRESEEDER_STORAGE ?= storage
 
-# VirtualBox commands to use
-IMAGE_PRESEEDER_VBEXECUTOR ?= VBoxHeadless
+# VirtualBox commands to use (can be overridden)
+IMAGE_PRESEEDER_VBEXECUTOR ?= VirtualBox
 IMAGE_PRESEEDER_VBMANAGE ?= VBoxManage
-VBOX = $(IMAGE_PRESEEDER_VBOXEXECUTOR)
+VBOX = $(IMAGE_PRESEEDER_VBEXECUTOR)
 VBOXMANAGE = $(IMAGE_PRESEEDER_VBMANAGE)
 
 check-local: clean-check check-incremental
@@ -115,7 +115,7 @@ stamp-$(TEST_NAME)-vm-created:
 	'$(VBOXMANAGE)' createvm --name $(VMNAME) --ostype $$ostype --register --basefolder '$(VMBASE)'
 	'$(VBOXMANAGE)' modifyvm $(VMNAME) --memory 1024 --rtcuseutc on
 	'$(VBOXMANAGE)' storagectl $(VMNAME) --name SATA --add sata --sataportcount 4 
-	'$(VBOXMANAGE)' createhd --filename '$(VMBASE)/disk.vdi' --format vdi --size 2048
+	'$(VBOXMANAGE)' createhd --filename '$(VMBASE)/disk.vdi' --format vdi --size 8192
 	'$(VBOXMANAGE)' storageattach $(VMNAME) --storagectl SATA --port 0 --device 0 --type hdd --medium '$(VMBASE)/disk.vdi'
 	'$(VBOXMANAGE)' storageattach $(VMNAME) --storagectl SATA --port 1 --device 0 --type dvddrive --medium emptydrive
 	'$(VBOXMANAGE)' snapshot $(VMNAME) take created
