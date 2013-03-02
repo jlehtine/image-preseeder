@@ -1,0 +1,27 @@
+#! /bin/bash
+
+# Image Preseeder, a tool to create preseeded Linux installation images
+# Copyright 2013 Johannes Lehtinen
+#
+# Licensed under the MIT License, see LICENSE.md.
+
+SCRIPTNAME=init-deps
+
+# Set up error handling
+error () {
+    echo "ERROR: $SCRIPTNAME: $1" 1>&2
+    exit 1
+}
+set -e
+trap 'error "Error in line $LINENO"' ERR
+
+# Check that we are root
+if [ `id -u` != 0 ]; then
+    error "Must be executed as root to install build dependencies"
+fi
+
+# Install dependencies verbosely
+set -x
+apt-get install markdown bsdtar cpio genisoimage
+
+# vim:si:sw=4:sta:et
