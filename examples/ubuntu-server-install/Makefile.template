@@ -29,7 +29,7 @@ UBUNTU_SERVER_URL = http://releases.ubuntu.com/12.04/ubuntu-12.04.2-server-i386.
 UBUNTU_SERVER_ISO = $(IMAGE_PRESEEDER_STORAGE)/ubuntu-12.04.2-server-i386.iso
 UBUNTU_SERVER_ISO_SHA256 = ubuntu-12.04.2-server-i386.sha256
 UBUNTU_SERVER_ISO_PRESEEDED = $(IMAGE_PRESEEDER_STORAGE)/ubuntu-12.04.2-server-i386-preseeded.iso
-VMBASE = $(IMAGE_PRESEEDER_STORAGE)/vm-$(EXAMPLE)
+VMBASE = $(IMAGE_PRESEEDER_STORAGE)/vm-example-$(EXAMPLE)
 VMNAME = image-preseeder-example-$(EXAMPLE)
 
 examples: stamp-vm-apache-installed

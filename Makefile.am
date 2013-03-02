@@ -14,7 +14,7 @@ dist_pkgdata_DATA = \
 EXAMPLE_TARGETS = examples clean-examples
 EXAMPLES_MAKEFILES = examples/Makefile examples/ubuntu-server-install/Makefile
 
-# Environment variables for the examples when started from the build tree
+# Environment variables for the examples when run from build directory
 IMAGE_PRESEEDER ?= $(abs_builddir)/image-preseeder
 IMAGE_PRESEEDER_TOPSRCDIR ?= $(abs_top_srcdir)
 IMAGE_PRESEEDER_PKGDATADIR ?= $(IMAGE_PRESEEDER_TOPSRCDIR)/data
@@ -27,6 +27,8 @@ all-local: image-preseeder $(EXAMPLES_MAKEFILES)
 clean-local:
 	-rm -f image-preseeder
 	-rm -f $(EXAMPLES_MAKEFILES)
+
+check-local: examples
 
 examples: image-preseeder
 
