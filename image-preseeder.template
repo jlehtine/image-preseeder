@@ -121,14 +121,12 @@ extract_iso_image () {
 detect_image_type () {
     local dist=''
     local version=''
-    local cdtype='normal'
     local infofile=''
     if [ -e "$1/.disk/info" ]; then
         infofile="$1/.disk/info"
     fi
     if [ -e "$1/.disk/mini-info" ]; then
         infofile="$1/.disk/mini-info"
-        cdtype="mini"
     fi
     if [ -n "$infofile" ]; then
         diskinfo="$(< "$infofile")"
@@ -146,13 +144,13 @@ detect_image_type () {
         version="$(echo "$diskinfo" | sed -e 's/^[^0-9]*\([0-9][0-9]*\.[0-9][0-9]*\).*$/\1/' | grep -E '^[0-9]+\.[0-9]+$')"
     fi
     if [ -n "$dist" ] && [ -n "$version" ]; then
-        echo "$dist-$version-$cdtype"
+        echo "$dist-$version"
     else
         echo "unknown"
     fi
 }
 
-# Preseeds initrd.gz with the specified preseed configuration
+# Preseeds initrd with the specified preseed configuration
 #
 # Parameters:
 #   $1 - path to initrd
@@ -160,13 +158,30 @@ detect_image_type () {
 preseed_initrd () {
     local initrd="$1"
     local initrdabs="$(abspath "$initrd")"
+    local uncompress compress
 
-    # Extract initrd.gz
+    # Determine compression
+    case "$initrd" in
+        *.gz)
+            uncompress="gunzip"
+            compress="gzip"
+            ;;
+        *.lz)
+            uncompress="unlzma"
+            compress="lzma"
+            ;;
+        *)
+            uncompress="cat"
+            compress="cat"
+            ;;
+    esac
+
+    # Extract initrd
     info "Extracting $initrd..."
     rm -rf "$workdir/initrd"
     mkdir "$workdir/initrd"
     pushd "$workdir/initrd" > /dev/null 2>&1
-    gzip -dc < "$initrdabs" | cpio -id 2> /dev/null \
+    "$uncompress" < "$initrdabs" | cpio -id 2> /dev/null \
         || error "Error extracting $initrd"
     popd > /dev/null 2>&1
 
@@ -189,9 +204,9 @@ d-i preseed/include string ${preseedchain[@]}
 EOS
     fi
 
-    # Repackage initrd.gz
+    # Repackage initrd
     info "Repackaging $initrd..."
-    find . | cpio --create --format=newc 2> /dev/null | gzip -c > "$initrdabs" \
+    find . | cpio --create --format=newc 2> /dev/null | "$compress" > "$initrdabs" \
         || error "Error repackaging $initrd"
     popd > /dev/null 2>&1
 
@@ -349,7 +364,7 @@ fi
 # Process initrd.gz to include preseeding configuration
 info "Preseeding initrd..."
 foundinitrd=false
-for initrd in initrd.gz install/initrd.gz install.*/initrd.gz; do
+for initrd in initrd.gz install/initrd.gz install.*/initrd.gz casper/initrd.lz; do
     initrdabs="$workdir/iso/$initrd"
     if [ -e "$initrdabs" ]; then
         preseed_initrd "$initrdabs"
@@ -357,7 +372,7 @@ for initrd in initrd.gz install/initrd.gz install.*/initrd.gz; do
     fi
 done
 if [ "$foundinitrd" = false ]; then
-    error "Did not find initrd.gz in ISO image"
+    error "Did not find initrd in ISO image"
 fi
 
 # Locate isolinux

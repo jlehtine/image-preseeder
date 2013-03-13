@@ -22,6 +22,6 @@ fi
 
 # Install dependencies verbosely
 set -x
-apt-get install markdown bsdtar cpio genisoimage
+apt-get install markdown bsdtar cpio xz-lzma genisoimage
 
 # vim:si:sw=4:sta:et
