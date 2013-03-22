@@ -8,8 +8,8 @@ bin_SCRIPTS = image-preseeder
 dist_doc_DATA = README.md LICENSE.md EXAMPLES.md \
 	README.html LICENSE.html EXAMPLES.html
 dist_pkgdata_DATA = \
-	data/preseed-ubuntu-server-12.04-normal.cfg \
-	data/include-ubuntu-server-12.04-normal
+	data/preseed-ubuntu-server-12.04.cfg \
+	data/include-ubuntu-server-12.04
 
 EXAMPLE_TARGETS = examples clean-examples
 EXAMPLES_MAKEFILES = examples/Makefile examples/ubuntu-server-install/Makefile
