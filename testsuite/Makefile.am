@@ -5,8 +5,6 @@
 
 # ISO images to be tested
 TEST_IMAGE_URLS = \
-http://cdimage.debian.org/debian-cd/6.0.7/i386/iso-cd/debian-6.0.7-i386-CD-1.iso \
-http://cdimage.debian.org/debian-cd/6.0.7/amd64/iso-cd/debian-6.0.7-amd64-CD-1.iso \
 http://releases.ubuntu.com/precise/ubuntu-12.04.2-desktop-i386.iso \
 http://releases.ubuntu.com/precise/ubuntu-12.04.2-desktop-amd64.iso \
 http://releases.ubuntu.com/precise/ubuntu-12.04.2-server-i386.iso \
@@ -14,7 +12,9 @@ http://releases.ubuntu.com/precise/ubuntu-12.04.2-server-amd64.iso \
 http://releases.ubuntu.com/quantal/ubuntu-12.10-desktop-i386.iso \
 http://releases.ubuntu.com/quantal/ubuntu-12.10-desktop-amd64.iso \
 http://releases.ubuntu.com/quantal/ubuntu-12.10-server-i386.iso \
-http://releases.ubuntu.com/quantal/ubuntu-12.10-server-amd64.iso 
+http://releases.ubuntu.com/quantal/ubuntu-12.10-server-amd64.iso \
+http://cdimage.debian.org/debian-cd/6.0.7/i386/iso-cd/debian-6.0.7-i386-CD-1.iso \
+http://cdimage.debian.org/debian-cd/6.0.7/amd64/iso-cd/debian-6.0.7-amd64-CD-1.iso
 
 # Use image-preseeder in build dir, unless otherwise configured
 IMAGE_PRESEEDER ?= $(top_builddir)/image-preseeder
