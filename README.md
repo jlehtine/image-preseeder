@@ -1,6 +1,8 @@
 Image Preseeder
 ===============
 
+**OBSOLETE: This repository has been archived, use Docker instead.**
+
 Image Preseeder is a tool for converting an existing Linux distribution
 installation image into a preseeded image suitable for fully non-interactive
 automatic installation. It was developed primarily for automating the
